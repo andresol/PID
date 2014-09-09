@@ -62,6 +62,7 @@ void setup() {
   Serial.begin(9600);
   lcd.begin(16, 2);
   start = 0;
+  digitalWrite(Relay, HIGH);
   pinMode(Relay, OUTPUT); 
   //initialize the variables we're linked to
   Setpoint = 30;
