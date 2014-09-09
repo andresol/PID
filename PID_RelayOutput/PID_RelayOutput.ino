@@ -49,7 +49,7 @@ float lastOutput[TEMPERATUR_SENORS] = {0};
 double Setpoint, Input, Output;
 
 double aggKp=6, aggKi=0.1, aggKd=0.5;
-double consKp=1, consKi=0.05, consKd=0.1;
+double consKp=2, consKi=0.1, consKd=0.25;
 
 //Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, consKp, consKi, consKd, DIRECT);
@@ -177,7 +177,7 @@ void doPID() {
     }
     myPID.Compute();
    
-    if (Output > 0.5 && (Output - lastOutput[0] > 0.25 || Output - lastOutput[0] < 0.25) {
+    if (Output > 1 && (Output - lastOutput[0] > 0.25 || Output - lastOutput[0] < 0.25)) {
        digitalWrite(Relay, HIGH);
     } else {
        digitalWrite(Relay, LOW);
