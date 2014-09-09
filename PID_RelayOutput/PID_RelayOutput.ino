@@ -14,6 +14,8 @@
 #include <string.h>
 
 #define Relay 22
+#define RELAY_ON 0
+#define RELAY_OFF 1
 #define TEMPERATUR_SENORS 1
 #define ERRORVALUE -1000;
 #define DEFAULT_SAMPLE_TIME 1000
@@ -62,7 +64,7 @@ void setup() {
   Serial.begin(9600);
   lcd.begin(16, 2);
   start = 0;
-  digitalWrite(Relay, HIGH);
+  digitalWrite(Relay, RELAY_OFF);
   pinMode(Relay, OUTPUT); 
   //initialize the variables we're linked to
   Setpoint = 30;
