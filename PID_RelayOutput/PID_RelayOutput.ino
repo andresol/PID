@@ -14,21 +14,20 @@
 #include <string.h>
 
 #define Relay 22
-#define RELAY_ON 0
-#define RELAY_OFF 1
+#define RELAY_ON 1
+#define RELAY_OFF 0
 #define TEMPERATUR_SENORS 1
 #define ERRORVALUE -1000;
 #define DEFAULT_SAMPLE_TIME 1000
 #define INT_TIME 150
-#define MAX_OUTPUT 10
+#define MAX_OUTPUT 500
 #define btnRIGHT  0
 #define btnUP     1
 #define btnDOWN   2
 #define btnLEFT   3
 #define btnSELECT 4
 #define btnNONE   5
-#define MENU_MODE 0
-#define TEMP_MODE 1
+
 
 // KEY VARIABLES
 int lcd_key = btnNONE;
@@ -44,6 +43,7 @@ int doTempSerialLogging = 1;
 unsigned long last = 0;
 unsigned long now = 0;
 float lastOutput[TEMPERATUR_SENORS] = {0};
+boolean menuMode = false;
 
 //Define Variables we'll be connecting to
 double Setpoint, Input, Output;
@@ -53,6 +53,7 @@ double consKp=2, consKi=0.1, consKd=0.25;
 
 //Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, consKp, consKi, consKd, DIRECT);
+unsigned long windowStartTime;
 
 int temperaturPins[TEMPERATUR_SENORS] = {24};
 OneWire oneWires[TEMPERATUR_SENORS] = {OneWire (temperaturPins[0])};
@@ -64,13 +65,14 @@ void setup() {
   Serial.begin(9600);
   lcd.begin(16, 2);
   start = 0;
+  windowStartTime = millis();
   digitalWrite(Relay, RELAY_OFF);
   pinMode(Relay, OUTPUT); 
   //initialize the variables we're linked to
   Setpoint = 30;
   lastOutput[0] = 0;
 
-  //tell the PID to range between 0 and the full window size
+  //tell the PID to range between 0 and max output
   myPID.SetOutputLimits(0, MAX_OUTPUT);
 
   //turn the PID on
@@ -134,17 +136,30 @@ void doButtonAction() {
       }
     case btnUP:
       {
-       Setpoint = Setpoint + 0.5;
+         if (menuMode) {
+        } else {
+          Setpoint = Setpoint + 0.5;
+        }
         break;
       }
     case btnDOWN:
       {
-        Setpoint = Setpoint - 0.5;
+        if (menuMode) {
+        } else {
+          Setpoint = Setpoint - 0.5;
+        }
         break;
       }
-    case btnSELECT:
-      {
-       
+    case btnSELECT: {
+        menuMode = !menuMode;
+        Serial.print("Mode:");
+        Serial.println(menuMode);
+        if (menuMode) {
+            lcd.setCursor(2, 1);
+            lcd.blink();
+        } else {
+          lcd.noBlink();
+        }
         break;
       }
     case btnNONE:
@@ -177,11 +192,16 @@ void doPID() {
     }
     myPID.Compute();
    
-    if (Output > 1 && (Output - lastOutput[0] > 0.25 || Output - lastOutput[0] < 0.25)) {
-       digitalWrite(Relay, HIGH);
-    } else {
-       digitalWrite(Relay, LOW);
+    if(millis() - windowStartTime > MAX_OUTPUT) { //time to shift the Relay Window
+      windowStartTime += MAX_OUTPUT;
     }
+   if(Output < (millis() - windowStartTime) && Output > 1) {
+       Serial.println(millis() - windowStartTime);
+       digitalWrite(Relay,HIGH);
+   } else {
+        digitalWrite(Relay,LOW);
+   }
+  
     lastOutput[0] = Output;
     lcd.setCursor(0, 0);
     printValuesOnLCD();
