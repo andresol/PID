@@ -48,8 +48,8 @@ boolean menuMode = false;
 //Define Variables we'll be connecting to
 double Setpoint, Input, Output;
 
-double aggKp=6, aggKi=0.1, aggKd=0.5;
-double consKp=2, consKi=0.1, consKd=0.25;
+double aggKp=10, aggKi=0.2, aggKd=0.5;
+double consKp=6, consKi=0.1, consKd=0.25;
 
 //Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, consKp, consKi, consKd, DIRECT);
