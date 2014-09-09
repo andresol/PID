@@ -1,17 +1,10 @@
 /********************************************************
- * PID RelayOutput Example
- * Same as basic example, except that this time, the output
- * is going to a digital pin which (we presume) is controlling
- * a relay.  the pid is designed to Output an analog value,
- * but the relay can only be On/Off.
+ * 
+ * 
+ * Temperature PID for controlling Beer Fermenting
  *
- *   to connect them together we use "time proportioning
- * control"  it's essentially a really slow version of PWM.
- * first we decide on a window size (5000mS say.) we then 
- * set the pid to adjust its output between 0 and that window
- * size.  lastly, we add some logic that translates the PID
- * output into "Relay On Time" with the remainder of the 
- * window being "Relay Off Time"
+ * 
+ * 
  ********************************************************/
 #include <LiquidCrystal.h>
 #include <PID_v1.h>
@@ -19,11 +12,13 @@
 #include <MenuBackend.h>
 #include <stdio.h>
 #include <string.h>
-#define Relay 22
 
+#define Relay 22
+#define RELAY_ON 0
+#define RELAY_OFF 1
 #define TEMPERATUR_SENORS 1
 #define ERRORVALUE -1000;
-#define DEFAULT_PRINT_TIME 1000
+#define DEFAULT_SAMPLE_TIME 1000
 #define INT_TIME 150
 #define MAX_WINDOW 10
 #define btnRIGHT  0
@@ -48,13 +43,13 @@ int EEPROM_ADDR = 0;
 int doTempSerialLogging = 1;
 unsigned long last = 0;
 unsigned long now = 0;
-float lastResult[TEMPERATUR_SENORS] = {0};
+float lastOutput[TEMPERATUR_SENORS] = {0};
 
 //Define Variables we'll be connecting to
 double Setpoint, Input, Output;
 
-double aggKp=4, aggKi=0.2, aggKd=1;
-double consKp=1, consKi=0.05, consKd=0.25;
+double aggKp=6, aggKi=0.1, aggKd=0.5;
+double consKp=1, consKi=0.05, consKd=0.1;
 
 //Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, consKp, consKi, consKd, DIRECT);
@@ -69,19 +64,21 @@ void setup() {
   Serial.begin(9600);
   lcd.begin(16, 2);
   start = 0;
+  digitalWrite(Relay, RELAY_OFF);
   pinMode(Relay, OUTPUT); 
   //initialize the variables we're linked to
   Setpoint = 30;
+  lastOutput[0] = 0;
 
   //tell the PID to range between 0 and the full window size
-  myPID.SetOutputLimits(0, MAX_WINDOW);
+  myPID.SetOutputLimits(0, MAX_OUTPUT);
 
   //turn the PID on
   myPID.SetMode(AUTOMATIC);
 }
 
 /**
-* Check if button is pressed. A click is defined to between 20-200 mills.
+* Get a butten if it is pressed.
 */
 int getButtonPressed() {
   lcd_key = read_LCD_buttons();  // read the buttons
@@ -107,8 +104,9 @@ int getButtonPressed() {
     return btnNONE;
   }
 }
-
-// read the buttons
+/**
+* Read which button is pressed
+*/
 int read_LCD_buttons() {
   int adc_key_in = 0;
   adc_key_in = analogRead(0);
@@ -124,10 +122,11 @@ int read_LCD_buttons() {
   return btnNONE;  // when all others fail, return this...
 }
 
-void doButtonAction(int value) {
+void doButtonAction() {
+  int btn = btnNONE;
+  btn = getButtonPressed();
   switch (value) {
     case btnRIGHT: {
-       
         break;
       }
     case btnLEFT: {
@@ -135,12 +134,12 @@ void doButtonAction(int value) {
       }
     case btnUP:
       {
-       Setpoint++;
+       Setpoint = Setpoint + 0.5;
         break;
       }
     case btnDOWN:
       {
-        Setpoint--;
+        Setpoint = Setpoint - 0.5;
         break;
       }
     case btnSELECT:
@@ -157,62 +156,67 @@ void doButtonAction(int value) {
 }
 
 void loop() {
-  int btn = btnNONE;
+  doButtonAction();
+  doPid();
+  delay(2);
+}
 
-  btn = getButtonPressed();
-  doButtonAction(btn);
-   unsigned long now = millis();
-  if ((last + DEFAULT_PRINT_TIME) < now) {
+void doPID() {
+  unsigned long now = millis();
+  if ((last + DEFAULT_SAMPLE_TIME) < now) {
     
-  String sensor = "Sensor1";
-  Input = printTemp(oneWires[0], sensor);
-  double gap = abs(Setpoint-Input); //distance away from setpoint
-  if(gap < 3)
-  {  //we're close to setpoint, use conservative tuning parameters
-    myPID.SetTunings(consKp, consKi, consKd);
-  }
-  else
-  {
-     //we're far from setpoint, use aggressive tuning parameters
-     myPID.SetTunings(aggKp, aggKi, aggKd);
-  }
-  myPID.Compute();
-  if (Output > 1) {
-     digitalWrite(Relay,HIGH);
-  } else {
-     digitalWrite(Relay,LOW);
-  }
-  lcd.setCursor(0, 0);
-  String printTxt = String("I:");
-  char temp[6];
-  if (Input < 100) { // One digit precicion if temp > 100
-     dtostrf(Input, 1, 2, temp);
-   } else {
-     dtostrf(Input, 1, 1, temp);
-   }
-   printTxt = printTxt + temp;
-   lcd.print(printTxt);
-   lcd.setCursor(8, 0);
-   printTxt = String("O:");
-   if (Output < 100) { // One digit precicion if temp > 100
-     dtostrf(Output, 1, 2, temp);
-   } else {
-     dtostrf(Output, 1, 1, temp);
-   }
-   printTxt = printTxt + temp;
-   lcd.print(printTxt);
-   lcd.setCursor(0, 1);
-   printTxt = String("S:");
-   if (Setpoint < 100) { // One digit precicion if temp > 100
-     dtostrf(Setpoint, 1, 2, temp);
-   } else {
-     dtostrf(Setpoint, 1, 1, temp);
-   }
-   printTxt = printTxt + temp;
-   lcd.print(printTxt);
+    String sensor = "Sensor1";
+    Input = printTemp(oneWires[0], sensor);
+    double gap = abs(Setpoint-Input); //distance away from setpoint
+    if(gap < 3) {  //we're close to setpoint, use conservative tuning parameters
+      myPID.SetTunings(consKp, consKi, consKd);
+    }
+    else {
+       //we're far from setpoint, use aggressive tuning parameters
+       myPID.SetTunings(aggKp, aggKi, aggKd);
+    }
+    myPID.Compute();
+   
+    if (Output > 0.5 && (Output - lastOutput[0] > 0.25 || Output - lastOutput[0] < 0.25) {
+       digitalWrite(Relay, HIGH);
+    } else {
+       digitalWrite(Relay, LOW);
+    }
+    lastOutput[0] = Output;
+    lcd.setCursor(0, 0);
+    printValuesOnLCD();
     last = millis();
   }
-  delay(2);
+}
+
+void printValuesOnLCD() {
+    String printTxt = String("I:");
+    char temp[6];
+    if (Input < 100) { // One digit precicion if temp > 100
+       dtostrf(Input, 1, 2, temp);
+     } else {
+       dtostrf(Input, 1, 1, temp);
+     }
+     printTxt = printTxt + temp;
+     lcd.print(printTxt);
+     lcd.setCursor(8, 0);
+     printTxt = String("O:");
+     if (Output < 100) { // One digit precicion if temp > 100
+       dtostrf(Output, 1, 2, temp);
+     } else {
+       dtostrf(Output, 1, 1, temp);
+     }
+     printTxt = printTxt + temp;
+     lcd.print(printTxt);
+     lcd.setCursor(0, 1);
+     printTxt = String("S:");
+     if (Setpoint < 100) { // One digit precicion if temp > 100
+       dtostrf(Setpoint, 1, 2, temp);
+     } else {
+       dtostrf(Setpoint, 1, 1, temp);
+     }
+     printTxt = printTxt + temp;
+     lcd.print(printTxt);
 }
 
 
