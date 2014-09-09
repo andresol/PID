@@ -25,7 +25,7 @@
 #define ERRORVALUE -1000;
 #define DEFAULT_PRINT_TIME 1000
 #define INT_TIME 150
-#define MAX_WINDOW 5000
+#define MAX_WINDOW 10
 #define btnRIGHT  0
 #define btnUP     1
 #define btnDOWN   2
