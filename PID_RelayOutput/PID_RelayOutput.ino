@@ -20,7 +20,7 @@
 #define ERRORVALUE -1000;
 #define DEFAULT_SAMPLE_TIME 1000
 #define INT_TIME 150
-#define MAX_WINDOW 10
+#define MAX_OUTPUT 10
 #define btnRIGHT  0
 #define btnUP     1
 #define btnDOWN   2
@@ -125,7 +125,7 @@ int read_LCD_buttons() {
 void doButtonAction() {
   int btn = btnNONE;
   btn = getButtonPressed();
-  switch (value) {
+  switch (btn) {
     case btnRIGHT: {
         break;
       }
@@ -157,7 +157,7 @@ void doButtonAction() {
 
 void loop() {
   doButtonAction();
-  doPid();
+  doPID();
   delay(2);
 }
 
