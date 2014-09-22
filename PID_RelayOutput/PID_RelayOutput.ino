@@ -17,6 +17,7 @@
 
 
 #define Relay 22
+
 #define RELAY_ON 1
 #define RELAY_OFF 0
 #define TEMPERATUR_SENORS 1
@@ -32,6 +33,7 @@
 #define btnNONE   5
 #define USE_EEPROM 1
 #define MAX_TEMP 1000
+#define COMPRESSOR_REST_TIME 120000 //2 min
 
 
 // KEY VARIABLES
@@ -44,11 +46,15 @@ unsigned long debounceTime = 0;
 
 //PROPERTIES
 int EEPROM_ADDR = 0;
+int EEPROM_ADDR_MODE = 1;
 int doTempSerialLogging = 1;
 unsigned long last = 0;
+unsigned long compressorChange = 0;
+unsigned long relayStatus = 0;
 unsigned long now = 0;
 float lastOutput[TEMPERATUR_SENORS] = {0};
 boolean menuMode = false;
+boolean heating = true; //if not heating then cooling 
 
 //Define Variables we'll be connecting to
 double Setpoint, Input, Output;
@@ -81,7 +87,22 @@ void setup() {
          EEPROM.writeDouble(EEPROM_ADDR, 30);
       }
       Setpoint = value;
-  } 
+      value = EEPROM.readDouble(EEPROM_ADDR_MODE);
+      if (value == 1) {
+        heating = true;
+      } else {
+        heating = false;
+        compressorChange = millis() - COMPRESSOR_REST_TIME;
+      }
+      lcd.clear();
+      lcd.setCursor(0,0);
+      if (heating) {
+        lcd.print("Heating mode");
+      } else {
+        lcd.print("Cooling mode");
+      }
+      delay(1000);
+    } 
   lastOutput[0] = 0;
 
   //tell the PID to range between 0 and max output
@@ -141,10 +162,31 @@ void doButtonAction() {
   btn = getButtonPressed();
   switch (btn) {
     case btnRIGHT: {
+        heating = !heating;
+        digitalWrite(Relay, LOW);
+        relayStatus = LOW;
+        lcd.clear();
+        lcd.setCursor(0,0);
+        if (heating) {
+          lcd.print("Heating mode");
+        } else {
+          lcd.print("Cooling mode");
+          compressorChange = millis() - COMPRESSOR_REST_TIME - 4000;
+          relayStatus != relayStatus;
+        }
+        if (USE_EEPROM) {
+            int value = 0;
+            if (heating) { 
+              value = 1;
+            }
+            EEPROM.writeDouble(EEPROM_ADDR_MODE, value);
+          }
+        delay(4000);
+        lcd.clear();
         break;
       }
     case btnLEFT: {
-       
+         break;
       }
     case btnUP:
       {
@@ -213,13 +255,28 @@ void doPID() {
     if(millis() - windowStartTime > MAX_OUTPUT) { //time to shift the Relay Window
       windowStartTime += MAX_OUTPUT;
     }
-   if(Output < (millis() - windowStartTime) && Output > 1) {
-       Serial.println(millis() - windowStartTime);
-       digitalWrite(Relay,HIGH);
+   unsigned long relayValue = relayStatus;
+   if (heating) {
+      if(Output < (millis() - windowStartTime) && Output > 1) {
+         relayValue = HIGH;
+       } else {
+         relayValue = LOW;
+       }
    } else {
-        digitalWrite(Relay,LOW);
+      if(Output < (millis() - windowStartTime) && Output > 1) {
+          relayValue = LOW;
+       } else {
+          relayValue = HIGH;
+       } 
    }
-  
+    if (relayStatus != relayValue && heating) {
+      digitalWrite(Relay, relayValue);
+      relayStatus = relayValue;
+    } else if ((compressorChange + COMPRESSOR_REST_TIME) < now && !heating && relayStatus != relayValue) {
+       digitalWrite(Relay, relayValue);
+       relayStatus = relayValue;
+       compressorChange = now;
+    }
     lastOutput[0] = Output;
     lcd.setCursor(0, 0);
     printValuesOnLCD();
@@ -228,7 +285,7 @@ void doPID() {
 }
 
 void printValuesOnLCD() {
-    String printTxt = String("I:");
+    String printTxt = String("T:");
     char temp[6];
     if (Input < 100) { // One digit precicion if temp > 100
        dtostrf(Input, 1, 2, temp);
@@ -238,6 +295,7 @@ void printValuesOnLCD() {
      printTxt = printTxt + temp;
      lcd.print(printTxt);
      lcd.setCursor(8, 0);
+
      printTxt = String("O:");
      if (Output < 100) { // One digit precicion if temp > 100
        dtostrf(Output, 1, 2, temp);
@@ -245,7 +303,18 @@ void printValuesOnLCD() {
        dtostrf(Output, 1, 1, temp);
      }
      printTxt = printTxt + temp;
-     lcd.print(printTxt);
+     Serial.println(printTxt);
+
+    if (relayStatus == HIGH && heating) {
+       printTxt = String("HEATING");
+       lcd.print(printTxt);
+     } else if (relayStatus == HIGH && !heating ) {
+       printTxt = String("COOLING");
+       lcd.print(printTxt);
+     }else {
+        lcd.print("        ");
+     }
+    
      lcd.setCursor(0, 1);
      printTxt = String("S:");
      if (Setpoint < 100) { // One digit precicion if temp > 100
