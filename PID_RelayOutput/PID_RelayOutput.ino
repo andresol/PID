@@ -12,6 +12,9 @@
 #include <MenuBackend.h>
 #include <stdio.h>
 #include <string.h>
+#include <EEPROMex.h>
+#include <EEPROMVar.h> //https://github.com/thijse/Arduino-Libraries/tree/master/EEPROMEx
+
 
 #define Relay 22
 #define RELAY_ON 1
@@ -27,6 +30,8 @@
 #define btnLEFT   3
 #define btnSELECT 4
 #define btnNONE   5
+#define USE_EEPROM 1
+#define MAX_TEMP 1000
 
 
 // KEY VARIABLES
@@ -62,14 +67,21 @@ LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
 unsigned long start;
 void setup() {
+  digitalWrite(Relay, RELAY_OFF);
   Serial.begin(9600);
   lcd.begin(16, 2);
   start = 0;
   windowStartTime = millis();
-  digitalWrite(Relay, RELAY_OFF);
   pinMode(Relay, OUTPUT); 
   //initialize the variables we're linked to
   Setpoint = 30;
+  if (USE_EEPROM) { //Firstime use please use calibrate.
+      double value = EEPROM.readDouble(EEPROM_ADDR);
+      if (value < (-1 * MAX_TEMP) || value > MAX_TEMP) {
+         EEPROM.writeDouble(EEPROM_ADDR, 30);
+      }
+      Setpoint = value;
+  } 
   lastOutput[0] = 0;
 
   //tell the PID to range between 0 and max output
@@ -139,6 +151,9 @@ void doButtonAction() {
          if (menuMode) {
         } else {
           Setpoint = Setpoint + 0.5;
+          if (USE_EEPROM) { 
+            EEPROM.writeDouble(EEPROM_ADDR, Setpoint);
+          }
         }
         break;
       }
@@ -147,6 +162,9 @@ void doButtonAction() {
         if (menuMode) {
         } else {
           Setpoint = Setpoint - 0.5;
+          if (USE_EEPROM) { 
+            EEPROM.writeDouble(EEPROM_ADDR, Setpoint);
+          }
         }
         break;
       }
