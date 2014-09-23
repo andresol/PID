@@ -33,7 +33,7 @@
 #define btnNONE   5
 #define USE_EEPROM 1
 #define MAX_TEMP 1000
-#define COMPRESSOR_REST_TIME 120000 //2 min
+#define COMPRESSOR_REST_TIME 180000 //3 min
 
 
 // KEY VARIABLES
