@@ -32,7 +32,7 @@
 #define btnSELECT 4
 #define btnNONE   5
 #define USE_EEPROM 1
-#define MAX_TEMP 1000
+#define MAX_TEMP 500
 #define COMPRESSOR_REST_TIME 180000 //3 min
 
 
@@ -46,7 +46,7 @@ unsigned long debounceTime = 0;
 
 //PROPERTIES
 int EEPROM_ADDR = 0;
-int EEPROM_ADDR_MODE = 1;
+int EEPROM_ADDR_MODE = 5;
 int doTempSerialLogging = 1;
 unsigned long last = 0;
 unsigned long compressorChange = 0;
@@ -84,11 +84,11 @@ void setup() {
   if (USE_EEPROM) { //Firstime use please use calibrate.
       double value = EEPROM.readDouble(EEPROM_ADDR);
       if (value < (-1 * MAX_TEMP) || value > MAX_TEMP) {
-         EEPROM.writeDouble(EEPROM_ADDR, 30);
+         EEPROM.writeDouble(EEPROM_ADDR, Setpoint);
       }
       Setpoint = value;
-      value = EEPROM.readDouble(EEPROM_ADDR_MODE);
-      if (value == 1) {
+      boolean valueMode = EEPROM.readDouble(EEPROM_ADDR_MODE);
+      if (valueMode == 1) {
         heating = true;
       } else {
         heating = false;
@@ -162,6 +162,7 @@ void doButtonAction() {
   btn = getButtonPressed();
   switch (btn) {
     case btnRIGHT: {
+        Serial.println("right is pressed");
         heating = !heating;
         digitalWrite(Relay, LOW);
         relayStatus = LOW;
@@ -285,7 +286,7 @@ void doPID() {
 }
 
 void printValuesOnLCD() {
-    String printTxt = String("T:");
+    String printTxt = String("PV:");
     char temp[6];
     if (Input < 100) { // One digit precicion if temp > 100
        dtostrf(Input, 1, 2, temp);
@@ -294,6 +295,7 @@ void printValuesOnLCD() {
      }
      printTxt = printTxt + temp;
      lcd.print(printTxt);
+     Serial.println(printTxt);
      lcd.setCursor(8, 0);
 
      printTxt = String("O:");
@@ -303,20 +305,20 @@ void printValuesOnLCD() {
        dtostrf(Output, 1, 1, temp);
      }
      printTxt = printTxt + temp;
-     Serial.println(printTxt);
+   
 
     if (relayStatus == HIGH && heating) {
-       printTxt = String("HEATING");
+       printTxt = String(" H     ");
        lcd.print(printTxt);
      } else if (relayStatus == HIGH && !heating ) {
-       printTxt = String("COOLING");
+       printTxt = String(" C     ");
        lcd.print(printTxt);
      }else {
         lcd.print("        ");
      }
     
      lcd.setCursor(0, 1);
-     printTxt = String("S:");
+     printTxt = String("SV:");
      if (Setpoint < 100) { // One digit precicion if temp > 100
        dtostrf(Setpoint, 1, 2, temp);
      } else {
