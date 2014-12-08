@@ -59,8 +59,8 @@ boolean heating = true; //if not heating then cooling
 //Define Variables we'll be connecting to
 double Setpoint, Input, Output;
 
-double aggKp=10, aggKi=0.2, aggKd=0.5;
-double consKp=6, consKi=0.1, consKd=0.25;
+double aggKp=13, aggKi=1, aggKd=0.45; 
+double consKp=7, consKi=0.5, consKd=0.20;
 
 //Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, consKp, consKi, consKd, DIRECT);
@@ -295,7 +295,7 @@ void printValuesOnLCD() {
      }
      printTxt = printTxt + temp;
      lcd.print(printTxt);
-     Serial.println(printTxt);
+     Serial.print(printTxt);
      lcd.setCursor(8, 0);
 
      printTxt = String("O:");
@@ -310,11 +310,14 @@ void printValuesOnLCD() {
     if (relayStatus == HIGH && heating) {
        printTxt = String(" H     ");
        lcd.print(printTxt);
+       Serial.println(":H");
      } else if (relayStatus == HIGH && !heating ) {
        printTxt = String(" C     ");
+       Serial.println(":C");
        lcd.print(printTxt);
-     }else {
+     } else {
         lcd.print("        ");
+        Serial.println("");
      }
     
      lcd.setCursor(0, 1);
